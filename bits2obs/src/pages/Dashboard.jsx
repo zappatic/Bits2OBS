@@ -31,6 +31,8 @@ export default function Dashboard() {
   const [availableScenes, setAvailableScenes] = useState([]);
   const [sceneCosts, setSceneCosts] = useState({});
   const [isConnectingToOBS, setIsConnectingToOBS] = useState(false);
+  const [isOBSConnected, setIsOBSConnected] = useState(false);
+  const [receivedBits, setReceivedBits] = useState([]);
   const [showErrorSnackbar, setShowErrorSnackbar] = useState(false);
   const [errorSnackbarMessage, setErrorSnackbarMessage] = useState("");
 
@@ -58,11 +60,13 @@ export default function Dashboard() {
         });
         setAvailableScenes(scenes);
         setIsConnectingToOBS(false);
+        setIsOBSConnected(true);
       })
       .catch((err) => {
         showError(err.description);
         console.log(err);
         setIsConnectingToOBS(false);
+        setIsOBSConnected(false);
       });
   };
 
@@ -70,6 +74,21 @@ export default function Dashboard() {
     obs.send("SetCurrentScene", {
       "scene-name": sceneName,
     });
+  };
+
+  const processBitsEvent = (userName, amountOfBits, message) => {
+    const entry = { userName, amountOfBits, message, scene: "" };
+    for (const [sceneName, cost] of Object.entries(sceneCosts)) {
+      if (amountOfBits === parseInt(cost)) {
+        switchToScene(sceneName);
+        entry.scene = sceneName;
+        break;
+      }
+    }
+
+    const a = [...receivedBits];
+    a.unshift(entry);
+    setReceivedBits(a);
   };
 
   const sceneCost = (sceneName) => {
@@ -107,7 +126,7 @@ export default function Dashboard() {
             </Typography>
           </Grid>
           <Grid item xs={6}>
-            <TwitchBitsPanel />
+            <TwitchBitsPanel isOBSConnected={isOBSConnected} showError={showError} processBitsEvent={processBitsEvent} receivedBits={receivedBits} />
           </Grid>
           <Grid item xs={6}>
             <OBSConnectPanel connectToOBS={connectToOBS} isConnectingToOBS={isConnectingToOBS} />

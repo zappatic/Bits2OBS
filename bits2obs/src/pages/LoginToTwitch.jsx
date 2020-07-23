@@ -30,7 +30,14 @@ export default function LoginToTwitch() {
             <Button
               variant="contained"
               color="primary"
-              href={"https://id.twitch.tv/oauth2/authorize?client_id=" + config.twitchclientid + "&redirect_uri=" + config.twitchredirect + "&response_type=token&scope=bits:read&force_verify=true"}
+              href={
+                "https://id.twitch.tv/oauth2/authorize?client_id=" +
+                config.twitchclientid +
+                "&redirect_uri=" +
+                (window.location.href.startsWith("https") ? "https://" : "http://") +
+                config.twitchredirect +
+                "&response_type=token&scope=bits:read&force_verify=true"
+              }
             >
               Login to Twitch
             </Button>

@@ -7,6 +7,7 @@ const Bits2OBSTheme = createMuiTheme({
   },
   typography: {
     h1: { fontSize: 34, marginBottom: 25, fontWeight: 400 },
+    h2: { fontSize: 22, marginBottom: 15, color: "#3E95CC", borderBottom: "1px solid #3E95CC" },
   },
 });
 

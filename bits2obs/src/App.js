@@ -10,7 +10,6 @@ function App() {
   const [isLoggedIntoTwitch, setIsLoggedIntoTwitch] = useState(localStorage.getItem("twitch_access_token") !== null);
 
   useEffect(() => {
-    console.log("executing");
     const hash = document.location.hash;
     if (hash !== "" && hash.length > 1) {
       const params = new URLSearchParams(hash.substr(1));

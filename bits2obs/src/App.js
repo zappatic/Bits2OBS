@@ -1,6 +1,8 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, Fragment } from "react";
 import { ThemeProvider } from "@material-ui/core/styles";
 import config from "./config.json";
+
+import CssBaseline from "@material-ui/core/CssBaseline";
 
 import Bits2OBSTheme from "./helpers/Bits2OBSTheme";
 import LoginToTwitch from "./pages/LoginToTwitch";
@@ -57,7 +59,12 @@ function App() {
     }
   }, []);
 
-  return <ThemeProvider theme={Bits2OBSTheme}>{!isLoggedIntoTwitch ? <LoginToTwitch /> : <Dashboard />}</ThemeProvider>;
+  return (
+    <Fragment>
+      <CssBaseline />
+      <ThemeProvider theme={Bits2OBSTheme}>{!isLoggedIntoTwitch ? <LoginToTwitch /> : <Dashboard />}</ThemeProvider>
+    </Fragment>
+  );
 }
 
 export default App;

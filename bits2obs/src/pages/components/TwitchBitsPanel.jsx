@@ -1,4 +1,6 @@
 import React, { useState, Fragment } from "react";
+import { withStyles } from "@material-ui/core/styles";
+import { red } from "@material-ui/core/colors";
 
 import Paper from "@material-ui/core/Paper";
 import Typography from "@material-ui/core/Typography";
@@ -16,16 +18,27 @@ import TableCell from "@material-ui/core/TableCell";
 import TableContainer from "@material-ui/core/TableContainer";
 import TableRow from "@material-ui/core/TableRow";
 
+const RedButton = withStyles((theme) => ({
+  root: {
+    color: theme.palette.getContrastText(red[500]),
+    backgroundColor: red[500],
+    "&:hover": {
+      backgroundColor: red[700],
+    },
+  },
+}))(Button);
+
 export default function TwitchBitsPanel(props) {
   const [showTwitchLogOutDialog, setShowTwitchLogOutDialog] = useState(false);
   const [showSimulateDialog, setShowSimulateDialog] = useState(false);
-  const [simulatedBitsAmount, setSimulatedBistAmount] = useState(100);
+  const [simulatedBitsAmount, setSimulatedBitsAmount] = useState(100);
 
   const twitchLogOut = () => {
     localStorage.removeItem("twitch_access_token");
     localStorage.removeItem("twitch_channel_id");
     localStorage.removeItem("twitch_display_name");
-    window.location.href = window.location.href;
+
+    window.location.href = window.location.href.split("#")[0];
   };
 
   return (
@@ -35,9 +48,33 @@ export default function TwitchBitsPanel(props) {
           <Typography variant="h2">Twitch bits - {localStorage.getItem("twitch_display_name")}</Typography>
         </Grid>
         <Grid item xs={6}>
-          <Button variant="contained" color="primary" style={{ marginRight: 15 }}>
-            Start
-          </Button>
+          {props.isTwitchConnected ? (
+            <RedButton
+              variant="contained"
+              color="primary"
+              style={{ marginRight: 15 }}
+              onClick={() => {
+                props.stopListeningForBits();
+              }}
+            >
+              Stop
+            </RedButton>
+          ) : (
+            <Button
+              variant="contained"
+              color="primary"
+              style={{ marginRight: 15 }}
+              onClick={() => {
+                if (!props.isOBSConnected) {
+                  props.showError("Please connect to OBS first");
+                } else {
+                  props.startListeningForBits();
+                }
+              }}
+            >
+              Start
+            </Button>
+          )}
           <Button
             variant="contained"
             color="secondary"
@@ -134,7 +171,7 @@ export default function TwitchBitsPanel(props) {
             onChange={(e) => {
               const amount = e.target.value;
               if (!isNaN(amount) && amount > 0) {
-                setSimulatedBistAmount(amount);
+                setSimulatedBitsAmount(amount);
               }
             }}
           />
@@ -151,7 +188,7 @@ export default function TwitchBitsPanel(props) {
           <Button
             onClick={() => {
               setShowSimulateDialog(false);
-              props.processBitsEvent("Simulation", parseInt(simulatedBitsAmount), "");
+              props.processBitsEvent("Simulation", parseInt(simulatedBitsAmount));
             }}
             color="primary"
           >

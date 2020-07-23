@@ -5,6 +5,7 @@ import clsx from "clsx";
 import OBSConnectPanel from "./components/OBSConnectPanel";
 import OBSScenesPanel from "./components/OBSScenesPanel";
 import TwitchBitsPanel from "./components/TwitchBitsPanel";
+import Footer from "./components/Footer";
 
 import Snackbar from "@material-ui/core/Snackbar";
 import SnackbarContent from "@material-ui/core/SnackbarContent";
@@ -17,6 +18,10 @@ import Grid from "@material-ui/core/Grid";
 
 const OBSWebSocket = require("obs-websocket-js");
 const obs = new OBSWebSocket();
+let twitchSocket = null;
+let twitchPongTimeoutID = 0;
+let twitchPingIntervalID = 0;
+
 const useStyles = makeStyles((theme) => ({
   mainPaper: { margin: "15px auto", padding: 35, width: "80%" },
   errorSnackbar: { backgroundColor: theme.palette.error.dark },
@@ -32,6 +37,7 @@ export default function Dashboard() {
   const [sceneCosts, setSceneCosts] = useState({});
   const [isConnectingToOBS, setIsConnectingToOBS] = useState(false);
   const [isOBSConnected, setIsOBSConnected] = useState(false);
+  const [isTwitchConnected, setIsTwitchConnected] = useState(false);
   const [receivedBits, setReceivedBits] = useState([]);
   const [showErrorSnackbar, setShowErrorSnackbar] = useState(false);
   const [errorSnackbarMessage, setErrorSnackbarMessage] = useState("");
@@ -63,7 +69,11 @@ export default function Dashboard() {
         setIsOBSConnected(true);
       })
       .catch((err) => {
-        showError(err.description);
+        if (err.hasOwnProperty("description")) {
+          showError(err.description);
+        } else if (err.hasOwnProperty("error")) {
+          showError(err.error);
+        }
         console.log(err);
         setIsConnectingToOBS(false);
         setIsOBSConnected(false);
@@ -76,8 +86,8 @@ export default function Dashboard() {
     });
   };
 
-  const processBitsEvent = (userName, amountOfBits, message) => {
-    const entry = { userName, amountOfBits, message, scene: "" };
+  const processBitsEvent = (userName, amountOfBits) => {
+    const entry = { userName, amountOfBits, scene: "" };
     for (const [sceneName, cost] of Object.entries(sceneCosts)) {
       if (amountOfBits === parseInt(cost)) {
         switchToScene(sceneName);
@@ -116,6 +126,71 @@ export default function Dashboard() {
     setShowErrorSnackbar(false);
   };
 
+  const startListeningForBits = () => {
+    twitchSocket = new WebSocket("wss://pubsub-edge.twitch.tv");
+    twitchSocket.onopen = () => {
+      setIsTwitchConnected(true);
+      twitchSocket.send(
+        JSON.stringify({ type: "LISTEN", data: { topics: ["channel-bits-events-v2." + localStorage.getItem("twitch_channel_id")], auth_token: localStorage.getItem("twitch_access_token") } })
+      );
+      twitchPingIntervalID = window.setInterval(() => {
+        sendTwitchPING();
+      }, 60 * 1000);
+    };
+    twitchSocket.onclose = (e) => {
+      setIsTwitchConnected(false);
+      console.log("Closed Twitch web socket");
+    };
+    twitchSocket.onerror = (e) => {
+      console.log("Twitch Web socket error", e);
+      twitchSocket.close();
+    };
+    twitchSocket.onmessage = (e) => {
+      try {
+        const parsed = JSON.parse(e.data);
+        if (parsed.hasOwnProperty("type")) {
+          if (parsed.type === "RESPONSE") {
+            if (parsed.hasOwnProperty("error") && parsed.error !== "") {
+              showError(parsed.error);
+            }
+          } else if (parsed.type === "RECONNECT") {
+            reconnectToTwitch();
+          } else if (parsed.type === "PONG") {
+            window.clearTimeout(twitchPongTimeoutID);
+          } else if (parsed.type === "MESSAGE") {
+            const message = JSON.parse(parsed.data.message);
+            const amountOfBits = message.data.bits_used;
+            let userName = "Anonymous";
+            if (message.data.hasOwnProperty("user_name") && message.data.user_name !== null) {
+              userName = message.data.user_name;
+            }
+            processBitsEvent(userName, amountOfBits);
+          }
+        }
+      } catch (err) {}
+    };
+  };
+
+  const stopListeningForBits = () => {
+    window.clearInterval(twitchPingIntervalID);
+    twitchSocket.close();
+  };
+
+  const reconnectToTwitch = () => {
+    stopListeningForBits();
+    startListeningForBits();
+  };
+
+  const sendTwitchPING = () => {
+    if (twitchSocket.readyState === 1) {
+      twitchSocket.send(JSON.stringify({ type: "PING" }));
+      twitchPongTimeoutID = window.setTimeout(() => {
+        console.log("No PONG received for 10 seconds -> reconnecting");
+        reconnectToTwitch();
+      }, 10 * 1000);
+    }
+  };
+
   return (
     <Fragment>
       <Paper className={classes.mainPaper}>
@@ -126,7 +201,15 @@ export default function Dashboard() {
             </Typography>
           </Grid>
           <Grid item xs={6}>
-            <TwitchBitsPanel isOBSConnected={isOBSConnected} showError={showError} processBitsEvent={processBitsEvent} receivedBits={receivedBits} />
+            <TwitchBitsPanel
+              isOBSConnected={isOBSConnected}
+              showError={showError}
+              processBitsEvent={processBitsEvent}
+              receivedBits={receivedBits}
+              startListeningForBits={startListeningForBits}
+              stopListeningForBits={stopListeningForBits}
+              isTwitchConnected={isTwitchConnected}
+            />
           </Grid>
           <Grid item xs={6}>
             <OBSConnectPanel connectToOBS={connectToOBS} isConnectingToOBS={isConnectingToOBS} />
@@ -134,6 +217,7 @@ export default function Dashboard() {
           </Grid>
         </Grid>
       </Paper>
+      <Footer />
 
       <Snackbar
         anchorOrigin={{ vertical: "top", horizontal: "center" }}

@@ -31,9 +31,9 @@ export default function ConnectionsPanel(props) {
   const [showTwitchDisconnectDialog, setShowTwitchDisconnectDialog] = useState(false);
   const [showStreamlabsDisconnectDialog, setShowStreamlabsDisconnectDialog] = useState(false);
   const [showSimulateBitsDialog, setShowSimulateBitsDialog] = useState(false);
-  const [simulatedBitsAmount, setSimulatedBitsAmount] = useState(100);
+  const [simulatedBitsAmount, setSimulatedBitsAmount] = useState("100");
   const [showSimulateDonationDialog, setShowSimulateDonationDialog] = useState(false);
-  const [simulatedDonationAmount, setSimulatedDonationAmount] = useState(10);
+  const [simulatedDonationAmount, setSimulatedDonationAmount] = useState("10");
   const [simulatedDonationCurrency, setSimulatedDonationCurrency] = useState("USD");
 
   return (

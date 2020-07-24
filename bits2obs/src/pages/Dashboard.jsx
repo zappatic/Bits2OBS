@@ -34,7 +34,7 @@ const useStyles = makeStyles((theme) => ({
   errorSnackbarIconVariant: { opacity: 0.9, marginRight: theme.spacing(1) },
 }));
 
-export default function Dashboard() {
+export default function Dashboard(props) {
   const classes = useStyles();
 
   const [availableScenes, setAvailableScenes] = useState([]);
@@ -221,6 +221,10 @@ export default function Dashboard() {
               startListeningForBits={startListeningForBits}
               stopListeningForBits={stopListeningForBits}
               isTwitchSocketConnected={isTwitchSocketConnected}
+              isTwitchConnected={props.isTwitchConnected}
+              isStreamlabsConnected={props.isStreamlabsConnected}
+              disconnectTwitch={props.disconnectTwitch}
+              disconnectStreamlabs={props.disconnectStreamlabs}
               showError={showError}
               processBitsEvent={processBitsEvent}
             />

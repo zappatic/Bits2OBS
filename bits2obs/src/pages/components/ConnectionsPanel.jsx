@@ -26,14 +26,9 @@ import Tooltip from "@material-ui/core/Tooltip";
 
 export default function ConnectionsPanel(props) {
   const [showTwitchDisconnectDialog, setShowTwitchDisconnectDialog] = useState(false);
+  const [showStreamlabsDisconnectDialog, setShowStreamlabsDisconnectDialog] = useState(false);
   const [showSimulateBitsDialog, setShowSimulateBitsDialog] = useState(false);
   const [simulatedBitsAmount, setSimulatedBitsAmount] = useState(100);
-
-  const disconnectTwitch = () => {
-    localStorage.removeItem("twitch_access_token");
-    localStorage.removeItem("twitch_channel_id");
-    localStorage.removeItem("twitch_display_name");
-  };
 
   return (
     <Fragment>
@@ -46,23 +41,7 @@ export default function ConnectionsPanel(props) {
                 <Typography>Twitch</Typography>
               </TableCell>
               <TableCell>
-                {localStorage.getItem("twitch_access_token") === null ? (
-                  <Tooltip title="Connect to Twitch" placement="top">
-                    <IconButton
-                      size="small"
-                      href={
-                        "https://id.twitch.tv/oauth2/authorize?client_id=" +
-                        config.twitchclientid +
-                        "&redirect_uri=" +
-                        (window.location.href.startsWith("https") ? "https://" : "http://") +
-                        config.twitchredirect +
-                        "&response_type=token&scope=bits:read&force_verify=true"
-                      }
-                    >
-                      <LinkIcon />
-                    </IconButton>
-                  </Tooltip>
-                ) : (
+                {props.isTwitchConnected ? (
                   <Tooltip title="Disconnect from Twitch" placement="top">
                     <IconButton
                       size="small"
@@ -73,41 +52,60 @@ export default function ConnectionsPanel(props) {
                       <LinkOffIcon />
                     </IconButton>
                   </Tooltip>
-                )}
-              </TableCell>
-              <TableCell>
-                {localStorage.getItem("twitch_access_token") === null ? null : props.isTwitchSocketConnected ? (
-                  <Tooltip title="Stop tracking bits" placement="top">
-                    <IconButton
-                      size="small"
-                      style={{ color: red[500] }}
-                      onClick={() => {
-                        props.stopListeningForBits();
-                      }}
-                    >
-                      <StopIcon />
-                    </IconButton>
-                  </Tooltip>
                 ) : (
-                  <Tooltip title="Start tracking bits" placement="top">
+                  <Tooltip title="Connect to Twitch" placement="top">
                     <IconButton
                       size="small"
-                      style={{ color: green[500] }}
-                      onClick={() => {
-                        if (!props.isOBSConnected) {
-                          props.showError("Please connect to OBS first");
-                        } else {
-                          props.startListeningForBits();
-                        }
-                      }}
+                      href={
+                        "https://id.twitch.tv/oauth2/authorize?client_id=" +
+                        config.twitchclientid +
+                        "&redirect_uri=" +
+                        (window.location.href.startsWith("https") ? "https://" : "http://") +
+                        config.twitchredirect +
+                        "&response_type=token&scope=bits:read&force_verify=true&state=twitch" +
+                        Date.now()
+                      }
                     >
-                      <PlayCircleOutlineIcon />
+                      <LinkIcon />
                     </IconButton>
                   </Tooltip>
                 )}
               </TableCell>
               <TableCell>
-                {localStorage.getItem("twitch_access_token") === null ? null : (
+                {props.isTwitchConnected ? (
+                  props.isTwitchSocketConnected ? (
+                    <Tooltip title="Stop tracking bits" placement="top">
+                      <IconButton
+                        size="small"
+                        style={{ color: red[500] }}
+                        onClick={() => {
+                          props.stopListeningForBits();
+                        }}
+                      >
+                        <StopIcon />
+                      </IconButton>
+                    </Tooltip>
+                  ) : (
+                    <Tooltip title="Start tracking bits" placement="top">
+                      <IconButton
+                        size="small"
+                        style={{ color: green[500] }}
+                        onClick={() => {
+                          if (!props.isOBSConnected) {
+                            props.showError("Please connect to OBS first");
+                          } else {
+                            props.startListeningForBits();
+                          }
+                        }}
+                      >
+                        <PlayCircleOutlineIcon />
+                      </IconButton>
+                    </Tooltip>
+                  )
+                ) : null}
+              </TableCell>
+              <TableCell>
+                {props.isTwitchConnected ? (
                   <Tooltip title="Simulate bits" placement="top">
                     <IconButton
                       size="small"
@@ -122,7 +120,7 @@ export default function ConnectionsPanel(props) {
                       <TouchAppIcon />
                     </IconButton>
                   </Tooltip>
-                )}
+                ) : null}
               </TableCell>
             </TableRow>
             <TableRow>
@@ -130,25 +128,52 @@ export default function ConnectionsPanel(props) {
                 <Typography>Streamlabs</Typography>
               </TableCell>
               <TableCell>
-                <Tooltip title="Connect to Streamlabs" placement="top">
-                  <IconButton size="small">
-                    <LinkIcon />
-                  </IconButton>
-                </Tooltip>
+                {props.isStreamlabsConnected ? (
+                  <Tooltip title="Disconnect from Streamlabs" placement="top">
+                    <IconButton
+                      size="small"
+                      onClick={() => {
+                        setShowStreamlabsDisconnectDialog(true);
+                      }}
+                    >
+                      <LinkOffIcon />
+                    </IconButton>
+                  </Tooltip>
+                ) : (
+                  <Tooltip title="Connect to Streamlabs" placement="top">
+                    <IconButton
+                      size="small"
+                      href={
+                        "https://www.streamlabs.com/api/v1.0/authorize?client_id=" +
+                        config.streamlabsclientid +
+                        "&redirect_uri=" +
+                        config.streamlabsredirect +
+                        "&response_type=code&scope=donations.read%20socket.token&state=streamlabs" +
+                        Date.now()
+                      }
+                    >
+                      <LinkIcon />
+                    </IconButton>
+                  </Tooltip>
+                )}
               </TableCell>
               <TableCell>
-                <Tooltip title="Start tracking donations" placement="top">
-                  <IconButton size="small">
-                    <PlayCircleOutlineIcon />
-                  </IconButton>
-                </Tooltip>
+                {props.isStreamlabsConnected ? (
+                  <Tooltip title="Start tracking donations" placement="top">
+                    <IconButton size="small" style={{ color: green[500] }}>
+                      <PlayCircleOutlineIcon />
+                    </IconButton>
+                  </Tooltip>
+                ) : null}
               </TableCell>
               <TableCell>
-                <Tooltip title="Simulate donation" placement="top">
-                  <IconButton size="small">
-                    <TouchAppIcon />
-                  </IconButton>
-                </Tooltip>
+                {props.isStreamlabsConnected ? (
+                  <Tooltip title="Simulate donation" placement="top">
+                    <IconButton size="small">
+                      <TouchAppIcon />
+                    </IconButton>
+                  </Tooltip>
+                ) : null}
               </TableCell>
             </TableRow>
           </TableBody>
@@ -177,7 +202,38 @@ export default function ConnectionsPanel(props) {
           <Button
             onClick={() => {
               setShowTwitchDisconnectDialog(false);
-              disconnectTwitch();
+              props.disconnectTwitch();
+            }}
+            color="primary"
+          >
+            Disconnect
+          </Button>
+        </DialogActions>
+      </Dialog>
+      <Dialog
+        open={showStreamlabsDisconnectDialog}
+        onClose={() => {
+          setShowStreamlabsDisconnectDialog(false);
+        }}
+        aria-labelledby="streamlabsdisconnectdialog-title"
+      >
+        <DialogTitle id="streamlabsdisconnectdialog-title">Disconnect from Streamlabs</DialogTitle>
+        <DialogContent>
+          <DialogContentText>This will erase the access token from the local browser storage.</DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => {
+              setShowStreamlabsDisconnectDialog(false);
+            }}
+            color="primary"
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={() => {
+              setShowStreamlabsDisconnectDialog(false);
+              props.disconnectStreamlabs();
             }}
             color="primary"
           >

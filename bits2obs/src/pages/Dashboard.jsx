@@ -4,14 +4,18 @@ import clsx from "clsx";
 
 import OBSConnectPanel from "./components/OBSConnectPanel";
 import OBSScenesPanel from "./components/OBSScenesPanel";
-import TwitchBitsPanel from "./components/TwitchBitsPanel";
+import ConnectionsPanel from "./components/ConnectionsPanel";
+import IncomingPanel from "./components/IncomingPanel";
 import Footer from "./components/Footer";
+import DialogHelp from "./components/DialogHelp";
 
+import Box from "@material-ui/core/Box";
 import Snackbar from "@material-ui/core/Snackbar";
 import SnackbarContent from "@material-ui/core/SnackbarContent";
 import IconButton from "@material-ui/core/IconButton";
 import ErrorIcon from "@material-ui/icons/Error";
 import CloseIcon from "@material-ui/icons/Close";
+import HelpIcon from "@material-ui/icons/Help";
 import Paper from "@material-ui/core/Paper";
 import Typography from "@material-ui/core/Typography";
 import Grid from "@material-ui/core/Grid";
@@ -37,10 +41,11 @@ export default function Dashboard() {
   const [sceneCosts, setSceneCosts] = useState({});
   const [isConnectingToOBS, setIsConnectingToOBS] = useState(false);
   const [isOBSConnected, setIsOBSConnected] = useState(false);
-  const [isTwitchConnected, setIsTwitchConnected] = useState(false);
+  const [isTwitchSocketConnected, setIsTwitchSocketConnected] = useState(false);
   const [receivedBits, setReceivedBits] = useState([]);
   const [showErrorSnackbar, setShowErrorSnackbar] = useState(false);
   const [errorSnackbarMessage, setErrorSnackbarMessage] = useState("");
+  const [showHelpDialog, setShowHelpDialog] = useState(localStorage.getItem("help-shown") === null);
 
   useEffect(() => {
     const savedCosts = localStorage.getItem("scene_costs");
@@ -129,7 +134,7 @@ export default function Dashboard() {
   const startListeningForBits = () => {
     twitchSocket = new WebSocket("wss://pubsub-edge.twitch.tv");
     twitchSocket.onopen = () => {
-      setIsTwitchConnected(true);
+      setIsTwitchSocketConnected(true);
       twitchSocket.send(
         JSON.stringify({ type: "LISTEN", data: { topics: ["channel-bits-events-v2." + localStorage.getItem("twitch_channel_id")], auth_token: localStorage.getItem("twitch_access_token") } })
       );
@@ -138,7 +143,7 @@ export default function Dashboard() {
       }, 60 * 1000);
     };
     twitchSocket.onclose = (e) => {
-      setIsTwitchConnected(false);
+      setIsTwitchSocketConnected(false);
       console.log("Closed Twitch web socket");
     };
     twitchSocket.onerror = (e) => {
@@ -194,6 +199,16 @@ export default function Dashboard() {
   return (
     <Fragment>
       <Paper className={classes.mainPaper}>
+        <Box display="flex" justifyContent="flex-end">
+          <IconButton
+            size="small"
+            onClick={() => {
+              setShowHelpDialog(true);
+            }}
+          >
+            <HelpIcon />
+          </IconButton>
+        </Box>
         <Grid container spacing={4}>
           <Grid item xs={12}>
             <Typography align="center" variant="h1">
@@ -201,15 +216,15 @@ export default function Dashboard() {
             </Typography>
           </Grid>
           <Grid item xs={6}>
-            <TwitchBitsPanel
+            <ConnectionsPanel
               isOBSConnected={isOBSConnected}
-              showError={showError}
-              processBitsEvent={processBitsEvent}
-              receivedBits={receivedBits}
               startListeningForBits={startListeningForBits}
               stopListeningForBits={stopListeningForBits}
-              isTwitchConnected={isTwitchConnected}
+              isTwitchSocketConnected={isTwitchSocketConnected}
+              showError={showError}
+              processBitsEvent={processBitsEvent}
             />
+            <IncomingPanel receivedBits={receivedBits} />
           </Grid>
           <Grid item xs={6}>
             <OBSConnectPanel connectToOBS={connectToOBS} isConnectingToOBS={isConnectingToOBS} />
@@ -248,6 +263,13 @@ export default function Dashboard() {
           ]}
         />
       </Snackbar>
+      <DialogHelp
+        show={showHelpDialog}
+        hide={() => {
+          localStorage.setItem("help-shown", true);
+          setShowHelpDialog(false);
+        }}
+      />
     </Fragment>
   );
 }

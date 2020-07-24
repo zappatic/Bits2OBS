@@ -5,7 +5,6 @@ import config from "./config.json";
 import CssBaseline from "@material-ui/core/CssBaseline";
 
 import Bits2OBSTheme from "./helpers/Bits2OBSTheme";
-import LoginToTwitch from "./pages/LoginToTwitch";
 import Dashboard from "./pages/Dashboard";
 
 function App() {
@@ -62,7 +61,9 @@ function App() {
   return (
     <Fragment>
       <CssBaseline />
-      <ThemeProvider theme={Bits2OBSTheme}>{!isLoggedIntoTwitch ? <LoginToTwitch /> : <Dashboard />}</ThemeProvider>
+      <ThemeProvider theme={Bits2OBSTheme}>
+        <Dashboard />
+      </ThemeProvider>
     </Fragment>
   );
 }

@@ -1,8 +1,11 @@
 import React, { useState, Fragment } from "react";
 import config from "../../config.json";
+import { currencies } from "../../helpers/currencies";
 import { red, green } from "@material-ui/core/colors";
 
 import Paper from "@material-ui/core/Paper";
+import Select from "@material-ui/core/Select";
+import MenuItem from "@material-ui/core/MenuItem";
 import TextField from "@material-ui/core/TextField";
 import Typography from "@material-ui/core/Typography";
 import Button from "@material-ui/core/Button";
@@ -29,6 +32,9 @@ export default function ConnectionsPanel(props) {
   const [showStreamlabsDisconnectDialog, setShowStreamlabsDisconnectDialog] = useState(false);
   const [showSimulateBitsDialog, setShowSimulateBitsDialog] = useState(false);
   const [simulatedBitsAmount, setSimulatedBitsAmount] = useState(100);
+  const [showSimulateDonationDialog, setShowSimulateDonationDialog] = useState(false);
+  const [simulatedDonationAmount, setSimulatedDonationAmount] = useState(10);
+  const [simulatedDonationCurrency, setSimulatedDonationCurrency] = useState("USD");
 
   return (
     <Fragment>
@@ -159,17 +165,50 @@ export default function ConnectionsPanel(props) {
               </TableCell>
               <TableCell>
                 {props.isStreamlabsConnected ? (
-                  <Tooltip title="Start tracking donations" placement="top">
-                    <IconButton size="small" style={{ color: green[500] }}>
-                      <PlayCircleOutlineIcon />
-                    </IconButton>
-                  </Tooltip>
+                  props.isStreamlabsSocketConnected ? (
+                    <Tooltip title="Stop tracking donations" placement="top">
+                      <IconButton
+                        size="small"
+                        style={{ color: red[500] }}
+                        onClick={() => {
+                          props.stopListeningForDonations();
+                        }}
+                      >
+                        <StopIcon />
+                      </IconButton>
+                    </Tooltip>
+                  ) : (
+                    <Tooltip title="Start tracking donations" placement="top">
+                      <IconButton
+                        size="small"
+                        style={{ color: green[500] }}
+                        onClick={() => {
+                          if (!props.isOBSConnected) {
+                            props.showError("Please connect to OBS first");
+                          } else {
+                            props.startListeningForDonations();
+                          }
+                        }}
+                      >
+                        <PlayCircleOutlineIcon />
+                      </IconButton>
+                    </Tooltip>
+                  )
                 ) : null}
               </TableCell>
               <TableCell>
                 {props.isStreamlabsConnected ? (
                   <Tooltip title="Simulate donation" placement="top">
-                    <IconButton size="small">
+                    <IconButton
+                      size="small"
+                      onClick={() => {
+                        if (!props.isOBSConnected) {
+                          props.showError("Please connect to OBS first");
+                        } else {
+                          setShowSimulateDonationDialog(true);
+                        }
+                      }}
+                    >
                       <TouchAppIcon />
                     </IconButton>
                   </Tooltip>
@@ -279,6 +318,71 @@ export default function ConnectionsPanel(props) {
             onClick={() => {
               setShowSimulateBitsDialog(false);
               props.processBitsEvent("Simulation", parseInt(simulatedBitsAmount));
+            }}
+            color="primary"
+          >
+            Simulate
+          </Button>
+        </DialogActions>
+      </Dialog>
+      <Dialog
+        open={showSimulateDonationDialog}
+        onClose={() => {
+          setShowSimulateDonationDialog(false);
+        }}
+        aria-labelledby="simulatedonationdialog-title"
+      >
+        <DialogTitle id="simulatedonationdialog-title">Simulate donation</DialogTitle>
+        <DialogContent>
+          <DialogContentText>Enter the amount of the simulated donation</DialogContentText>
+          <TextField
+            autoFocus
+            margin="dense"
+            id="name"
+            label="Amount"
+            fullWidth
+            value={simulatedDonationAmount}
+            onChange={(e) => {
+              const amount = e.target.value;
+              if (!isNaN(amount) && amount > 0) {
+                setSimulatedDonationAmount(amount);
+              }
+            }}
+          />
+          <Select
+            size="small"
+            margin="dense"
+            label="Currency"
+            fullWidth
+            value={simulatedDonationCurrency}
+            onChange={(e) => {
+              setSimulatedDonationCurrency(e.target.value);
+            }}
+            style={{ marginTop: 10 }}
+          >
+            <MenuItem value="">
+              <em>All</em>
+            </MenuItem>
+            {currencies.map((c) => (
+              <MenuItem key={c} value={c}>
+                {c}
+              </MenuItem>
+            ))}
+          </Select>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => {
+              setShowSimulateDonationDialog(false);
+            }}
+            color="primary"
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={() => {
+              setShowSimulateDonationDialog(false);
+              props.processDonationEvent("Simulation", simulatedDonationAmount, simulatedDonationCurrency);
             }}
             color="primary"
           >

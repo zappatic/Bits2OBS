@@ -1,6 +1,9 @@
 import React, { useState, useEffect, Fragment } from "react";
 import { makeStyles } from "@material-ui/core/styles";
 import clsx from "clsx";
+import io from "socket.io-client";
+import { useDispatch } from "react-redux";
+import { addIncomingEntry } from "../redux/actions/incomingActions";
 
 import OBSConnectPanel from "./components/OBSConnectPanel";
 import OBSScenesPanel from "./components/OBSScenesPanel";
@@ -25,6 +28,7 @@ const obs = new OBSWebSocket();
 let twitchSocket = null;
 let twitchPongTimeoutID = 0;
 let twitchPingIntervalID = 0;
+let streamlabsSocket = null;
 
 const useStyles = makeStyles((theme) => ({
   mainPaper: { margin: "15px auto", padding: 35, width: "80%" },
@@ -36,21 +40,25 @@ const useStyles = makeStyles((theme) => ({
 
 export default function Dashboard(props) {
   const classes = useStyles();
+  const dispatch = useDispatch();
 
   const [availableScenes, setAvailableScenes] = useState([]);
-  const [sceneCosts, setSceneCosts] = useState({});
+  const [sceneCosts, setSceneCosts] = useState([]);
   const [isConnectingToOBS, setIsConnectingToOBS] = useState(false);
   const [isOBSConnected, setIsOBSConnected] = useState(false);
   const [isTwitchSocketConnected, setIsTwitchSocketConnected] = useState(false);
-  const [receivedBits, setReceivedBits] = useState([]);
+  const [isStreamlabsSocketConnected, setIsStreamlabsSocketConnected] = useState(false);
   const [showErrorSnackbar, setShowErrorSnackbar] = useState(false);
   const [errorSnackbarMessage, setErrorSnackbarMessage] = useState("");
-  const [showHelpDialog, setShowHelpDialog] = useState(localStorage.getItem("help-shown") === null);
+  const [showHelpDialog, setShowHelpDialog] = useState(localStorage.getItem("help_shown") === null);
 
   useEffect(() => {
     const savedCosts = localStorage.getItem("scene_costs");
     if (savedCosts !== null) {
-      setSceneCosts(JSON.parse(savedCosts));
+      const tmp = JSON.parse(savedCosts);
+      if (Array.isArray(tmp)) {
+        setSceneCosts(tmp);
+      }
     }
   }, []);
 
@@ -92,34 +100,108 @@ export default function Dashboard(props) {
   };
 
   const processBitsEvent = (userName, amountOfBits) => {
-    const entry = { userName, amountOfBits, scene: "" };
-    for (const [sceneName, cost] of Object.entries(sceneCosts)) {
-      if (amountOfBits === parseInt(cost)) {
-        switchToScene(sceneName);
-        entry.scene = sceneName;
+    const entry = { type: "bits", userName, amountOfBits, scene: "" };
+    for (let x = 0; x < sceneCosts.length; ++x) {
+      const sc = sceneCosts[x];
+      if (amountOfBits === parseInt(sc.costBits)) {
+        switchToScene(sc.sceneName);
+        entry.scene = sc.sceneName;
         break;
       }
     }
 
-    const a = [...receivedBits];
-    a.unshift(entry);
-    setReceivedBits(a);
+    dispatch(addIncomingEntry(entry));
   };
 
-  const sceneCost = (sceneName) => {
-    if (sceneCosts.hasOwnProperty(sceneName)) {
-      return sceneCosts[sceneName];
-    } else {
-      return 0;
+  const processDonationEvent = (userName, amount, currency) => {
+    const entry = { type: "donation", userName, amount, currency, scene: "" };
+    for (let x = 0; x < sceneCosts.length; ++x) {
+      const sc = sceneCosts[x];
+      if (amount === sc.costMoney && (sc.currency === "" || currency === sc.currency)) {
+        switchToScene(sc.sceneName);
+        entry.scene = sc.sceneName;
+        break;
+      }
     }
+    dispatch(addIncomingEntry(entry));
   };
 
-  const setSceneCost = (sceneName, cost) => {
-    const o = Object.assign({}, sceneCosts);
-    o[sceneName] = cost;
-    setSceneCosts(o);
+  const sceneCostBits = (sceneName) => {
+    for (let x = 0; x < sceneCosts.length; ++x) {
+      const sc = sceneCosts[x];
+      if (sc.sceneName === sceneName) {
+        return sc.costBits;
+      }
+    }
+    return 0;
+  };
 
-    localStorage.setItem("scene_costs", JSON.stringify(o));
+  const sceneCostMoney = (sceneName) => {
+    for (let x = 0; x < sceneCosts.length; ++x) {
+      const sc = sceneCosts[x];
+      if (sc.sceneName === sceneName) {
+        return sc.costMoney;
+      }
+    }
+    return 0;
+  };
+
+  const sceneCostCurrency = (sceneName) => {
+    for (let x = 0; x < sceneCosts.length; ++x) {
+      const sc = sceneCosts[x];
+      if (sc.sceneName === sceneName) {
+        return sc.currency;
+      }
+    }
+    return "";
+  };
+
+  const setSceneCostBits = (sceneName, costBits) => {
+    const a = [...sceneCosts];
+    let found = false;
+    for (let x = 0; x < a.length; ++x) {
+      if (a[x].sceneName === sceneName) {
+        a[x].costBits = costBits;
+        found = true;
+      }
+    }
+    if (!found) {
+      a.push({ sceneName, costBits, costMoney: 0, currency: "" });
+    }
+    setSceneCosts(a);
+    localStorage.setItem("scene_costs", JSON.stringify(a));
+  };
+
+  const setSceneCostMoney = (sceneName, costMoney) => {
+    const a = [...sceneCosts];
+    let found = false;
+    for (let x = 0; x < a.length; ++x) {
+      if (a[x].sceneName === sceneName) {
+        a[x].costMoney = costMoney;
+        found = true;
+      }
+    }
+    if (!found) {
+      a.push({ sceneName, costBits: 0, costMoney, currency: "" });
+    }
+    setSceneCosts(a);
+    localStorage.setItem("scene_costs", JSON.stringify(a));
+  };
+
+  const setSceneCostCurrency = (sceneName, currency) => {
+    const a = [...sceneCosts];
+    let found = false;
+    for (let x = 0; x < a.length; ++x) {
+      if (a[x].sceneName === sceneName) {
+        a[x].currency = currency;
+        found = true;
+      }
+    }
+    if (!found) {
+      a.push({ sceneName, costBits: 0, costMoney: 0, currency });
+    }
+    setSceneCosts(a);
+    localStorage.setItem("scene_costs", JSON.stringify(a));
   };
 
   const showError = (msg) => {
@@ -172,7 +254,9 @@ export default function Dashboard(props) {
             processBitsEvent(userName, amountOfBits);
           }
         }
-      } catch (err) {}
+      } catch (err) {
+        console.log(err);
+      }
     };
   };
 
@@ -194,6 +278,34 @@ export default function Dashboard(props) {
         reconnectToTwitch();
       }, 10 * 1000);
     }
+  };
+
+  const startListeningForDonations = () => {
+    const socketToken = localStorage.getItem("streamlabs_socket_token");
+
+    streamlabsSocket = io(`https://sockets.streamlabs.com?token=${socketToken}`, { transports: ["websocket"] });
+    streamlabsSocket.on("connect", () => {
+      setIsStreamlabsSocketConnected(true);
+    });
+    streamlabsSocket.on("disconnect", () => {
+      setIsStreamlabsSocketConnected(false);
+    });
+    streamlabsSocket.on("error", (error) => {
+      console.log(error);
+      stopListeningForDonations();
+    });
+
+    streamlabsSocket.on("event", (eventData) => {
+      if (!eventData.for && eventData.type === "donation") {
+        const data = eventData.message[0];
+        console.log("processing", data.name, data.amount, data.currency);
+        processDonationEvent(data.name, data.amount, data.currency);
+      }
+    });
+  };
+
+  const stopListeningForDonations = () => {
+    streamlabsSocket.close();
   };
 
   return (
@@ -222,17 +334,29 @@ export default function Dashboard(props) {
               stopListeningForBits={stopListeningForBits}
               isTwitchSocketConnected={isTwitchSocketConnected}
               isTwitchConnected={props.isTwitchConnected}
+              startListeningForDonations={startListeningForDonations}
+              stopListeningForDonations={stopListeningForDonations}
+              isStreamlabsSocketConnected={isStreamlabsSocketConnected}
               isStreamlabsConnected={props.isStreamlabsConnected}
               disconnectTwitch={props.disconnectTwitch}
               disconnectStreamlabs={props.disconnectStreamlabs}
               showError={showError}
               processBitsEvent={processBitsEvent}
+              processDonationEvent={processDonationEvent}
             />
-            <IncomingPanel receivedBits={receivedBits} />
+            <IncomingPanel />
           </Grid>
           <Grid item xs={6}>
             <OBSConnectPanel connectToOBS={connectToOBS} isConnectingToOBS={isConnectingToOBS} />
-            <OBSScenesPanel availableScenes={availableScenes} sceneCost={sceneCost} setSceneCost={setSceneCost} />
+            <OBSScenesPanel
+              availableScenes={availableScenes}
+              sceneCostBits={sceneCostBits}
+              sceneCostMoney={sceneCostMoney}
+              sceneCostCurrency={sceneCostCurrency}
+              setSceneCostBits={setSceneCostBits}
+              setSceneCostMoney={setSceneCostMoney}
+              setSceneCostCurrency={setSceneCostCurrency}
+            />
           </Grid>
         </Grid>
       </Paper>
@@ -270,7 +394,7 @@ export default function Dashboard(props) {
       <DialogHelp
         show={showHelpDialog}
         hide={() => {
-          localStorage.setItem("help-shown", true);
+          localStorage.setItem("help_shown", true);
           setShowHelpDialog(false);
         }}
       />

@@ -1,4 +1,5 @@
 import React, { Fragment } from "react";
+import { useSelector } from "react-redux";
 
 import Paper from "@material-ui/core/Paper";
 import Typography from "@material-ui/core/Typography";
@@ -9,19 +10,27 @@ import TableContainer from "@material-ui/core/TableContainer";
 import TableRow from "@material-ui/core/TableRow";
 
 export default function IncomingPanel(props) {
+  const entries = useSelector((state) => state.incoming.entries);
+
   return (
     <Fragment>
       <Typography variant="h2">Incoming bits &amp; donations</Typography>
       <TableContainer component={Paper} style={{ marginTop: 5 }}>
         <Table size="small">
           <TableBody>
-            {props.receivedBits.map((rb, index) => {
+            {entries.map((re, index) => {
               return (
                 <TableRow key={index} style={index % 2 ? { backgroundColor: "#fafafa" } : null}>
                   <TableCell>
-                    <Typography>
-                      {rb.userName} ({rb.amountOfBits} <img src="/bits.png" alt="" height="15" />) &rarr; {rb.scene === "" ? <i>No scene matched</i> : <b>{rb.scene}</b>}
-                    </Typography>
+                    {re.type === "donation" ? (
+                      <Typography>
+                        {re.userName} ({re.amount} {re.currency}) &rarr; {re.scene === "" ? <i>No scene matched</i> : <b>{re.scene}</b>}
+                      </Typography>
+                    ) : (
+                      <Typography>
+                        {re.userName} ({re.amountOfBits} <img src="/bits.png" alt="" height="15" />) &rarr; {re.scene === "" ? <i>No scene matched</i> : <b>{re.scene}</b>}
+                      </Typography>
+                    )}
                   </TableCell>
                 </TableRow>
               );
@@ -29,7 +38,7 @@ export default function IncomingPanel(props) {
           </TableBody>
         </Table>
       </TableContainer>
-      {props.receivedBits.length === 0 ? <Typography component="i">No bits or donations yet...</Typography> : null}
+      {entries.length === 0 ? <Typography component="i">No bits or donations yet...</Typography> : null}
     </Fragment>
   );
 }

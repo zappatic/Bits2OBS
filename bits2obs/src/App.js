@@ -32,6 +32,7 @@ function App() {
       if (params.has("state") && params.get("state").startsWith("twitch") && params.has("access_token")) {
         localStorage.setItem("twitch_access_token", params.get("access_token"));
         setIsTwitchConnected(true);
+        window.history.pushState("", document.title, window.location.pathname);
       }
     }
     const qs = new URLSearchParams(document.location.search);
@@ -52,6 +53,7 @@ function App() {
                 if (json.hasOwnProperty("socket_token")) {
                   localStorage.setItem("streamlabs_socket_token", json.socket_token);
                   setIsStreamlabsConnected(true);
+                  window.history.pushState("", document.title, window.location.pathname);
                 }
               });
           }

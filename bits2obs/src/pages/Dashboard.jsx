@@ -114,10 +114,12 @@ export default function Dashboard(props) {
   };
 
   const processDonationEvent = (userName, amount, currency) => {
+    const comparisonAmount = Math.round(parseFloat(amount) * 100);
     const entry = { type: "donation", userName, amount, currency, scene: "" };
     for (let x = 0; x < sceneCosts.length; ++x) {
       const sc = sceneCosts[x];
-      if (amount === sc.costMoney && (sc.currency === "" || currency === sc.currency)) {
+      const sceneAmount = Math.round(parseFloat(sc.costMoney) * 100);
+      if (comparisonAmount === sceneAmount && (sc.currency === "" || currency === sc.currency)) {
         switchToScene(sc.sceneName);
         entry.scene = sc.sceneName;
         break;
